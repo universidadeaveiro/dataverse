@@ -17,6 +17,7 @@ import edu.harvard.iq.dataverse.util.BundleUtil;
 import java.io.IOException;
 import java.sql.Timestamp;
 import java.util.Date;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.Future;
 import org.apache.solr.client.solrj.SolrServerException;
@@ -58,8 +59,25 @@ public class SubmitDatasetForReviewCommand extends AbstractDatasetCommand<Datase
         updateDatasetUser(ctxt);
 
         AuthenticatedUser requestor = getUser().isAuthenticated() ? (AuthenticatedUser) getUser() : null;
-        
+
+        // Get SBIDM SuperUser account data
+        AuthenticatedUser sbidmAdminUser = new AuthenticatedUser();
+        sbidmAdminUser.setId((long) 1);
+        sbidmAdminUser.setUserIdentifier("SBIDMAdminUser");
+        sbidmAdminUser.setEmail("sbidm-dunas@ua.pt");
+
         List<AuthenticatedUser> authUsers = ctxt.permissions().getUsersWithPermissionOn(Permission.PublishDataset, savedDataset);
+
+        // TODO: REVIEW IF THIS CHECK IS NECESSARY. IT'S BEING DONE IN METHOD 'getUsersWithPermissionOn'
+        if ( authUsers != null ) {
+            // ADD SuperUser to notifcation list
+            authUsers.add(authUsers.size(), sbidmAdminUser);
+        }
+        else {
+            authUsers = new LinkedList<>();
+            authUsers.add(authUsers.size(), sbidmAdminUser);
+        }
+
         for (AuthenticatedUser au : authUsers) {
             ctxt.notifications().sendNotification(au, new Timestamp(new Date().getTime()), UserNotification.Type.SUBMITTEDDS, savedDataset.getLatestVersion().getId(), "", requestor, false);
         }
